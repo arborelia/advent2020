@@ -30,7 +30,7 @@ fn find_triple_product(numbers: &Vec<i64>) -> Option<i64> {
 
 fn main() -> Result<()> {
     let mut numbers: Vec<i64> = Vec::new();
-    for line in read_lines("/home/elia/win/Downloads/input1.txt") {
+    for line in read_lines("input.txt") {
         let num: i64 = line?.parse().unwrap();
         numbers.push(num);
     }
