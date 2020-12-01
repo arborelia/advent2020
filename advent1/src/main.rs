@@ -1,9 +1,8 @@
 mod helpers;
+use eyre::{eyre, Result};
 use helpers::read_lines;
-use eyre::{Result, eyre};
 
-
-fn find_pair_product(numbers: &Vec<i64>, total: i64) -> Result<i64> {
+pub fn find_pair_product(numbers: &Vec<i64>, total: i64) -> Result<i64> {
     let n = numbers.len();
     for pos1 in 0..n {
         for pos2 in (pos1 + 1)..n {
@@ -15,7 +14,7 @@ fn find_pair_product(numbers: &Vec<i64>, total: i64) -> Result<i64> {
     Err(eyre!("No pair adds to {}", total))
 }
 
-fn find_triple_product(numbers: &Vec<i64>, total: i64) -> Result<i64> {
+pub fn find_triple_product(numbers: &Vec<i64>, total: i64) -> Result<i64> {
     let n = numbers.len();
     for pos1 in 0..n {
         for pos2 in (pos1 + 1)..n {
@@ -39,7 +38,6 @@ fn main() -> Result<()> {
     println!("{}", product);
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {
