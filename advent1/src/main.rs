@@ -1,10 +1,11 @@
 mod helpers;
-use helpers::*;
+use helpers::read_lines;
 use std::io::{Result};
 
-fn find_pair_product(numbers: &Vec<i64>) -> Option<i64> {
-    for pos1 in 0..(numbers.len() - 1) {
-        for pos2 in (pos1 + 1)..(numbers.len()) {
+fn _find_pair_product(numbers: &Vec<i64>) -> Option<i64> {
+    let n = numbers.len();
+    for pos1 in 0..n {
+        for pos2 in (pos1 + 1)..n {
             if numbers[pos1] + numbers[pos2] == 2020 {
                 return Some(numbers[pos1] * numbers[pos2]);
             }
