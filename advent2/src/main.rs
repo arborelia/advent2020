@@ -37,6 +37,9 @@ mod tests {
 
     #[test]
     fn it_works() -> Result<()> {
+        assert!(check_passwd(1, 3, 'a', "abcde"));
+        assert!(!check_passwd(1, 3, 'b', "cdefg"));
+        assert!(check_passwd(2, 9, 'c', "ccccccccc"));
         Ok(())
     }
 }
