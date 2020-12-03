@@ -11,3 +11,7 @@ pub fn read_lines_result(filename: &str) -> io::Result<Lines<impl BufRead>> {
 pub fn read_lines(filename: &str) -> Lines<impl BufRead> {
     read_lines_result(filename).unwrap()
 }
+
+pub fn get_lines(filename: &str) -> Vec<String> {
+    read_lines(filename).map(|line| line.unwrap()).collect()
+}
