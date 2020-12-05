@@ -50,7 +50,7 @@ fn parse_u64(input: &str) -> IResult<&str, u64> {
 fn parse_height_in(input: &str) -> IResult<&str, u64> {
     let (input, num) = parse_u64(input)?;
     let (input, _tag) = tag("in")(input)?;
-    if num < 59 || num > 74 {
+    if num < 59 || num > 76 {
         Err(fail_verification(input))
     } else {
         Ok((input, num))
@@ -151,13 +151,12 @@ pub fn num_valid_passports(input: &str) -> u64 {
     let passports = input.split("\n\n");
     let mut num_valid: u64 = 0;
     for passport in passports {
-        if let Ok((input, fields)) = parse_passport(passport) {
+        let parsed = parse_passport(passport);
+        if let Ok((input, fields)) = parsed {
             // the all_consuming combinator should ensure that there's no input left, but let's check
             assert!(input == "");
             if fields.is_superset(&REQUIRED_FIELDS) {
                 num_valid += 1;
-            } else {
-                println!("INVALID\n{}\n", passport);
             }
         }
     }
@@ -166,7 +165,7 @@ pub fn num_valid_passports(input: &str) -> u64 {
 
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")?;
-    println!("{}", num_valid_passports(&input));
+    println!("{}\n", num_valid_passports(&input));
     Ok(())
 }
 
