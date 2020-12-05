@@ -1,4 +1,4 @@
-use nom::character::is_digit;
+use nom::character::{complete::alphanumeric1};
 use nom::bytes::complete::take_while_m_n;
 use eyre::{Result, eyre};
 use std::collections::{HashSet, HashMap};
@@ -115,6 +115,13 @@ fn parse_pid(input: &str) -> IResult<&str, &str> {
     terminated(
         tag("pid="),
         take_while_m_n(9, 9, is_dec_digit)
+    )(input)
+}
+
+fn parse_cid(input: &str) -> IResult<&str, &str> {
+    terminated(
+        tag("cid="),
+        alphanumeric1
     )(input)
 }
 
