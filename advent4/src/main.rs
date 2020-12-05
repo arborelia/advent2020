@@ -1,14 +1,15 @@
-use eyre::{eyre, Result};
+use eyre::Result;
 use lazy_static::lazy_static;
 use maplit::hashset;
+use nom::branch::alt;
 use nom::bytes::complete::tag; // WHY IS IT CALLED THIS
 use nom::bytes::complete::take_while_m_n;
-use nom::character::complete::{alphanumeric1, multispace1};
+use nom::character::complete::{alpha1, digit1, multispace0, multispace1, none_of};
+use nom::combinator::{all_consuming, map_res, recognize, verify};
 use nom::error::{ErrorKind, ParseError};
-use nom::{branch::alt, multi::separated_list1};
-use nom::{
-    character::complete::digit1, combinator::*, sequence::preceded, sequence::terminated, IResult,
-};
+use nom::multi::{many1, separated_list1};
+use nom::sequence::{preceded, terminated};
+use nom::IResult;
 use std::collections::HashSet;
 use std::fs;
 use std::iter::FromIterator;
@@ -128,22 +129,67 @@ fn parse_pid(input: &str) -> IResult<&str, &str> {
 
 /// Parse any field of the passport, returning its tag (including the colon), such as
 /// "pid:" if it successfully parsed a pid field.
-fn parse_any_field(input: &str) -> IResult<&str, &str> {
+fn parse_valid_field(input: &str) -> IResult<&str, &str> {
     alt((
         parse_hgt, parse_iyr, parse_byr, parse_eyr, parse_hcl, parse_ecl, parse_pid, parse_cid,
     ))(input)
 }
 
-// the "cid" field, if present, can contain anything. In practice, it seems to always be
-// alphanumeric.
-fn parse_cid(input: &str) -> IResult<&str, &str> {
-    terminated(tag("cid:"), alphanumeric1)(input)
+fn non_whitespace(input: &str) -> IResult<&str, &str> {
+    recognize(many1(none_of(" \n\t")))(input)
 }
 
-/// Parse a single complete passport, returning the fields it contains.
-pub fn parse_passport(input: &str) -> IResult<&str, HashSet<&str>> {
-    let (input, field_list) = all_consuming(separated_list1(multispace1, parse_any_field))(input)?;
+// the "cid" field, if present, can contain anything but whitespace.
+fn parse_cid(input: &str) -> IResult<&str, &str> {
+    terminated(tag("cid:"), non_whitespace)(input)
+}
+
+/// Parse any field name, returning the field name and the following colon.
+fn parse_field_name(input: &str) -> IResult<&str, &str> {
+    recognize(terminated(alpha1, tag(":")))(input)
+}
+
+fn parse_arbitrary_field(input: &str) -> IResult<&str, &str> {
+    terminated(parse_field_name, non_whitespace)(input)
+}
+
+/// Parse just the field names of a single passport, returning the fields it contains,
+/// regardless of whether their values are valid.
+pub fn parse_passport_fields(input: &str) -> IResult<&str, HashSet<&str>> {
+    // We need to allow optional whitespace at the end,
+    let (input, field_list) = all_consuming(terminated(
+        separated_list1(multispace1, parse_arbitrary_field),
+        multispace0,
+    ))(input)?;
     Ok((input, HashSet::from_iter(field_list)))
+}
+
+/// Parse a single complete passport, returning the valid fields it contains.
+pub fn parse_valid_passport(input: &str) -> IResult<&str, HashSet<&str>> {
+    // We need to allow optional whitespace at the end,
+    let (input, field_list) = all_consuming(terminated(
+        separated_list1(multispace1, parse_valid_field),
+        multispace0,
+    ))(input)?;
+    Ok((input, HashSet::from_iter(field_list)))
+}
+
+/// Parse a complete file of passports separated by empty lines, returning the number of passports that
+/// are well-formed (contain the seven required fields, regardless of their values).
+pub fn num_wellformed_passports(input: &str) -> u64 {
+    let passports = input.split("\n\n");
+    let mut num_well_formed: u64 = 0;
+    for passport in passports {
+        let parsed = parse_passport_fields(passport);
+        if let Ok((input, fields)) = parsed {
+            // the all_consuming combinator should ensure that there's no input left, but let's check\
+            assert!(input == "");
+            if fields.is_superset(&REQUIRED_FIELDS) {
+                num_well_formed += 1;
+            }
+        }
+    }
+    num_well_formed
 }
 
 /// Parse a complete file of passports separated by empty lines, returning the number of valid passports in it.
@@ -151,9 +197,9 @@ pub fn num_valid_passports(input: &str) -> u64 {
     let passports = input.split("\n\n");
     let mut num_valid: u64 = 0;
     for passport in passports {
-        let parsed = parse_passport(passport);
+        let parsed = parse_valid_passport(passport);
         if let Ok((input, fields)) = parsed {
-            // the all_consuming combinator should ensure that there's no input left, but let's check
+            // the all_consuming combinator should ensure that there's no input left, but let's check\
             assert!(input == "");
             if fields.is_superset(&REQUIRED_FIELDS) {
                 num_valid += 1;
@@ -165,7 +211,12 @@ pub fn num_valid_passports(input: &str) -> u64 {
 
 fn main() -> Result<()> {
     let input = fs::read_to_string("input.txt")?;
-    println!("{}\n", num_valid_passports(&input));
+    let num_well_formed = num_wellformed_passports(&input);
+    let num_valid = num_valid_passports(&input);
+    println!(
+        "{} well-formed passports\n{} valid passports",
+        num_well_formed, num_valid
+    );
     Ok(())
 }
 
@@ -174,7 +225,80 @@ mod test {
     use super::*;
 
     #[test]
-    fn test_example1() -> Result<()> {
+    fn test_valid_examples() -> Result<()> {
+        let needed_fields: HashSet<&str> = REQUIRED_FIELDS.clone();
+        let fields_plus_cid: HashSet<&str> =
+            hashset! {"iyr:", "eyr:", "byr:", "hgt:", "ecl:", "hcl:", "pid:", "cid:"};
+
+        let (_, fields) = parse_valid_passport(
+            "pid:087499704 hgt:74in ecl:grn iyr:2012 eyr:2030 byr:1980
+        hcl:#623a2f",
+        )?;
+        assert!(fields == needed_fields);
+
+        let (_, fields) = parse_valid_passport(
+            "eyr:2029 ecl:blu cid:129 byr:1989
+            iyr:2014 pid:896056539 hcl:#a97842 hgt:165cm",
+        )?;
+        assert!(fields == fields_plus_cid);
+
+        let (_, fields) = parse_valid_passport(
+            "hcl:#888785
+            hgt:164cm byr:2001 iyr:2015 cid:88
+            pid:545766238 ecl:hzl
+            eyr:2022",
+        )?;
+        assert!(fields == fields_plus_cid);
+
+        let (_, fields) = parse_valid_passport(
+            "iyr:2010 hgt:158cm hcl:#b6652a ecl:blu byr:1944 eyr:2021 pid:093154719",
+        )?;
+        assert!(fields == needed_fields);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_invalid_examples() -> Result<()> {
+        let parsed = parse_valid_passport(
+            "eyr:1972 cid:100
+            hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
+        );
+        assert!(parsed.is_err());
+
+        let parsed = parse_valid_passport(
+            "iyr:2019
+            hcl:#602927 eyr:1967 hgt:170cm
+            ecl:grn pid:012533040 byr:1946",
+        );
+        assert!(parsed.is_err());
+
+        let parsed = parse_valid_passport(
+            "eyr:1972 cid:100
+            hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
+        );
+        assert!(parsed.is_err());
+
+        let parsed = parse_valid_passport(
+            "eyr:1972 cid:100
+            hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
+        );
+        assert!(parsed.is_err());
+
+        // Ideally I'd be able to test where the parse failed, but these Error results
+        // seem impossible to take apart.
+        // Leaving this code for possible help later.
+        //
+        // if let Err(nom::Err::Error((rest, ErrorKind::Verify))) = parsed {
+        //     assert_eq!(
+        //         rest,
+        //         " cid:100
+        //     hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926"
+        //     );
+        // } else {
+        //     assert!(false, "this parsed incorrectly");
+        // };
+
         Ok(())
     }
 }
