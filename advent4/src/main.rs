@@ -68,11 +68,15 @@ fn parse_height_cm(input: &str) -> IResult<&str, u64> {
     }
 }
 
+// The overall plan for parsing and validating fields is this:
+// If we recognize a field name, and the value is valid for that field, we return
+// the field name _including the colon_. (Leaving the colon on was a simplification
+// so that I wouldn't have to use more combinators).
+//
+// For example, a valid height field returns "hgt:".
+
 fn parse_hgt(input: &str) -> IResult<&str, &str> {
-    terminated(
-        tag("hgt:"), // this will return "hgt=" if the height validates
-        alt((parse_height_in, parse_height_cm)),
-    )(input)
+    terminated(tag("hgt:"), alt((parse_height_in, parse_height_cm)))(input)
 }
 
 fn parse_iyr(input: &str) -> IResult<&str, &str> {
@@ -149,6 +153,7 @@ fn parse_field_name(input: &str) -> IResult<&str, &str> {
     recognize(terminated(alpha1, tag(":")))(input)
 }
 
+/// Parse any field without validating it, and return the field name (with a colon).
 fn parse_arbitrary_field(input: &str) -> IResult<&str, &str> {
     terminated(parse_field_name, non_whitespace)(input)
 }
