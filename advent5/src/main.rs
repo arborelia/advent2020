@@ -1,5 +1,6 @@
 mod helpers;
 use helpers::read_lines;
+use std::collections::HashSet;
 
 // Get the first character and the remaining characters of a string.
 fn string_head_tail(s: &str) -> (&str, &str) {
@@ -31,7 +32,8 @@ pub fn interpret_binary_seat(code: &str) -> i64 {
     binary_seat_search(code, 0, 128, 0, 8)
 }
 
-fn main() {
+#[allow(dead_code)]
+fn _max_seat() {
     let mut max_seat: i64 = 0;
     for line in read_lines("input.txt") {
         let line = line.unwrap();
@@ -41,6 +43,29 @@ fn main() {
         }
     }
     println!("{}", max_seat)
+}
+
+fn missing_number(numbers: HashSet<i64>, min: i64, max: i64) -> i64 {
+    let mut seen = false;
+    for num in min..max {
+        if !seen && numbers.contains(&num) {
+            seen = true;
+        } else if seen && !numbers.contains(&num) {
+            return num;
+        }
+    }
+    panic!("there was no missing number???")
+}
+
+fn main() {
+    let mut seats_seen: HashSet<i64> = HashSet::new();
+    for line in read_lines("input.txt") {
+        let line = line.unwrap();
+        let seat_id = interpret_binary_seat(&line);
+        seats_seen.insert(seat_id);        
+    }
+    let missing_seat: i64 = missing_number(seats_seen, 0, 128 * 8);
+    println!("{}", missing_seat)
 }
 
 #[cfg(test)]
