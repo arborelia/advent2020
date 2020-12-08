@@ -285,24 +285,17 @@ mod test {
         assert!(parsed.is_err());
 
         let parsed = parse_valid_passport(
-            "eyr:1972 cid:100
-            hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
+            "cid:100 eyr:1972 hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
         );
         assert!(parsed.is_err());
-
-        // Ideally I'd be able to test where the parse failed, but these Error results
-        // seem impossible to take apart.
-        // Leaving this code for possible help later.
-        //
-        // if let Err(nom::Err::Error((rest, ErrorKind::Verify))) = parsed {
-        //     assert_eq!(
-        //         rest,
-        //         " cid:100
-        //     hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926"
-        //     );
-        // } else {
-        //     assert!(false, "this parsed incorrectly");
-        // };
+        assert_eq!(
+            parsed.unwrap_err(),
+            // oh come on are you serious, how many times do we have to say it's an error
+            nom::Err::Error(nom::error::Error {
+                input: "eyr:1972 hcl:#18171d ecl:amb hgt:170 pid:186cm iyr:2018 byr:1926",
+                code: ErrorKind::Eof
+            })
+        );
 
         Ok(())
     }
