@@ -6,7 +6,6 @@ use nom::{branch::alt, bytes::complete::tag}; // WHY IS IT CALLED THIS
 
 use nom::character::complete::{alpha1, digit1};
 use nom::combinator::{map_res, opt};
-use nom::error::{ErrorKind, ParseError};
 use nom::multi::separated_list1;
 use nom::IResult;
 use std::collections::HashSet;
@@ -21,22 +20,14 @@ lazy_static! {
 
 #[derive(Debug, PartialEq, Clone)]
 struct AllowsContainment {
-    container: String,
-    contained: String,
+    desc: String,
+    contained: Vec<MultiBag>,
 }
 
-fn is_dec_digit(c: char) -> bool {
-    c.is_digit(10)
-}
-
-/// Construct a value to go inside an Err() to indicate that you've checked a value
-/// you just parsed, and it shouldn't count as a successful parse. An example here
-/// is a height that is out of range.
-///
-/// This function was helpfully provided by @tanriol on gitter.im/Geal/nom.
-/// I do not understand it in the slightest, and it ought to be a nom internal.
-fn fail_verification<I, E: ParseError<I>>(input: I) -> nom::Err<E> {
-    nom::Err::Error(ParseError::from_error_kind(input, ErrorKind::Verify))
+#[derive(Debug, PartialEq, Clone)]
+struct MultiBag {
+    desc: String,
+    num: u64,
 }
 
 /// Parse a decimal integer (with no sign) and return it as a u64.
@@ -55,64 +46,75 @@ fn parse_bag(input: &str) -> IResult<&str, String> {
     Ok((input, bagname))
 }
 
-fn parse_multibag(input: &str) -> IResult<&str, String> {
-    let (input, _num) = parse_u64(input)?;
+fn parse_multibag(input: &str) -> IResult<&str, MultiBag> {
+    let (input, num) = parse_u64(input)?;
     let (input, _) = tag(" ")(input)?;
     let (input, bagname) = parse_bag(input)?;
-    Ok((input, bagname))
+    Ok((
+        input,
+        MultiBag {
+            desc: bagname,
+            num: num,
+        },
+    ))
 }
 
-fn parse_baglist(input: &str) -> IResult<&str, Vec<String>> {
+fn parse_baglist(input: &str) -> IResult<&str, Vec<MultiBag>> {
     separated_list1(tag(", "), parse_multibag)(input)
 }
 
-fn parse_empty_baglist(input: &str) -> IResult<&str, Vec<String>> {
+fn parse_empty_baglist(input: &str) -> IResult<&str, Vec<MultiBag>> {
     let (input, _) = tag("no other bags")(input)?;
     Ok((input, Vec::new()))
 }
 
-fn parse_containment(input: &str) -> IResult<&str, Vec<AllowsContainment>> {
+fn parse_containment(input: &str) -> IResult<&str, AllowsContainment> {
     let (input, bag1) = parse_bag(input)?;
     let (input, _) = tag(" contain ")(input)?;
     let (input, containable_bags) = alt((parse_baglist, parse_empty_baglist))(input)?;
-    let containment_rules: Vec<AllowsContainment> = containable_bags
-        .iter()
-        .cloned()
-        .map(|bag2| AllowsContainment {
-            container: bag1.clone(),
-            contained: bag2.clone(),
-        })
-        .collect();
+    let containment_rule = AllowsContainment {
+        desc: bag1,
+        contained: containable_bags,
+    };
     let (input, _) = tag(".")(input)?;
-    Ok((input, containment_rules))
+    Ok((input, containment_rule))
 }
 
-fn parse_containment_complete(input: &str) -> Vec<AllowsContainment> {
-    let (input, containment_rules) = parse_containment(input).unwrap();
-    containment_rules
+fn parse_containment_complete(input: &str) -> AllowsContainment {
+    let (_input, containment_rule) = parse_containment(input).unwrap();
+    containment_rule
+}
+
+fn num_contained(bagname: &str, rules: &Vec<AllowsContainment>) -> u64 {
+    for rule in rules {
+        if rule.desc == bagname {
+            let mut num: u64 = 0;
+            for contained in &rule.contained[..] {
+                num += (1 + num_contained(&contained.desc, rules)) * contained.num;
+            }
+            return num;
+        }
+    }
+    panic!("No rules for what a {} bag can contain", bagname);
 }
 
 fn num_containers(bagname: &str, rules: &Vec<AllowsContainment>) -> usize {
     let mut bags: HashSet<String> = HashSet::new();
-    for rule in rules {
-        if rule.contained == bagname {
-            if !bags.contains(&rule.container) {
-                bags.insert(rule.container.to_owned());
-            }
-        }
-    }
 
+    bags.insert(bagname.to_owned());
     let mut num_choices: usize = bags.len();
     loop {
         for rule in rules {
-            if bags.contains(&rule.contained) {
-                if !bags.contains(&rule.container) {
-                    bags.insert(rule.container.to_owned());
+            for contained in &rule.contained {
+                if bags.contains(&contained.desc) {
+                    if !bags.contains(&rule.desc) {
+                        bags.insert(rule.desc.to_owned());
+                    }
                 }
             }
         }
         if bags.len() == num_choices {
-            return num_choices;
+            return num_choices - 1;
         }
         num_choices = bags.len();
     }
@@ -122,15 +124,17 @@ fn main() -> Result<()> {
     let rules: Vec<AllowsContainment> = get_lines("input.txt")
         .iter()
         .cloned()
-        .flat_map(|line| parse_containment_complete(&line))
+        .map(|line| parse_containment_complete(&line))
         .collect();
-    // let mut rules: Vec<AllowsContainment> = Vec::new();
-    // for line in get_lines("input.txt") {
-    //     let (_, new_rules) = parse_containment(&line)?;
-    //     rules.extend(new_rules);
-    // }
-    let num = num_containers("shiny gold", &rules);
-    println!("{}", num);
+
+    let n_containers = num_containers("shiny gold", &rules);
+    let n_contained = num_contained("shiny gold", &rules);
+
+    println!(
+        "{} different bags can contain a shiny gold bag",
+        n_containers
+    );
+    println!("a shiny gold bag contains {} bags", n_contained);
     Ok(())
 }
 
