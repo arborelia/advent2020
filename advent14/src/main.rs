@@ -3,6 +3,7 @@ use nom::character::complete::digit1;
 use nom::combinator::map_res;
 use nom::IResult;
 use nom::{branch::alt, multi::separated_list1};
+use std::collections::HashMap;
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 struct Bitmask {
@@ -17,21 +18,8 @@ enum Instruction {
 }
 use self::Instruction::*;
 
-fn highest_addr(instructions: &[Instruction]) -> usize {
-    let mut highest: usize = 0;
-    for inst in instructions {
-        if let SetValue(addr, _value) = inst {
-            if *addr > highest {
-                highest = *addr;
-            }
-        }
-    }
-    highest
-}
-
-fn run_instructions(instructions: &[Instruction]) -> Vec<u64> {
-    let highest = highest_addr(instructions);
-    let mut memory: Vec<u64> = vec![0; highest + 1];
+fn run_instructions(instructions: &[Instruction]) -> HashMap<usize, u64> {
+    let mut memory: HashMap<usize, u64> = HashMap::new();
     let mut current_mask = Bitmask {
         zeros: 1 << 36 - 1,
         ones: 0,
@@ -40,7 +28,10 @@ fn run_instructions(instructions: &[Instruction]) -> Vec<u64> {
     for inst in instructions {
         match inst {
             SetMask(mask) => current_mask = *mask,
-            SetValue(addr, value) => memory[*addr] = apply_bitmask(current_mask, *value),
+            SetValue(addr, value) => {
+                memory.insert(*addr, apply_bitmask(current_mask, *value));
+                ()
+            }
         }
     }
     memory
@@ -96,7 +87,7 @@ fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let instructions = parse_instructions(&input);
     let memory = run_instructions(&instructions);
-    let answer: u64 = memory.iter().sum();
+    let answer: u64 = memory.values().sum();
     println!("Total of memory values: {}", answer);
 }
 
