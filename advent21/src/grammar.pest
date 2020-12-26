@@ -1,0 +1,7 @@
+WHITESPACE = _{ " " }
+word = @{ LETTER+ }
+ingredients = { word+ }
+allergens = { "(contains " ~ allergen_list ~ ")" }
+allergen_list = { word ~ (", " ~ word)* }
+food = { ingredients ~ allergens }
+foodlist = { food ~ ("\n" ~ food)* }
