@@ -152,8 +152,9 @@ fn find_tile(
     edge_counts: &DefaultHashMap<u32, u32>,
     row: usize,
     col: usize,
-) -> OrientedTile {
+) -> Option<OrientedTile> {
     // find a tile that fits this position
+    let mut found_tile: Option<OrientedTile> = None;
     for tile in tileset.iter() {
         for &turned_right in [false, true].iter() {
             for &flipped_h in [false, true].iter() {
@@ -165,10 +166,59 @@ fn find_tile(
                         turned_right,
                     };
                     let mut is_ok = true;
+                    if row == 0 {
+                        if edge_counts[oriented.top_edge()] > 1 {
+                            // not a top edge tile
+                            is_ok = false;
+                        }
+                    } else {
+                        let tile_above = &grid[row - 1][col];
+                        if let Some(otile) = tile_above {
+                            if reverse(otile.bottom_edge()) != oriented.top_edge() {
+                                is_ok = false;
+                            }
+                        }
+                    }
+                    if col == 0 {
+                        if edge_counts[oriented.left_edge()] > 1 {
+                            is_ok = false;
+                        }
+                    } else {
+                        let tile_left = &grid[row][col - 1];
+                        if let Some(otile) = tile_left {
+                            if reverse(otile.right_edge()) != oriented.left_edge() {
+                                is_ok = false;
+                            }
+                        }
+                    }
+                    if is_ok {
+                        found_tile = Some(oriented.clone());
+                    }
                 }
             }
         }
+        if found_tile.is_some() {
+            break;
+        }
     }
+    found_tile
+}
+
+fn show_grid(grid: &Vec<Vec<Option<OrientedTile>>>) {
+    for row in 0..N {
+        for col in 0..N {
+            match &grid[row][col] {
+                Some(otile) => {
+                    print!("{} ", otile.tile.id);
+                }
+                None => {
+                    print!("---- ");
+                }
+            }
+        }
+        println!("");
+    }
+    println!("");
 }
 
 fn main() {
@@ -181,41 +231,22 @@ fn main() {
         grid.push(vec![None; N]);
     }
 
-    let mut corner_tile: Option<OrientedTile> = None;
-    for tile in tileset.iter() {
-        for &turned_right in [false, true].iter() {
-            for &flipped_h in [false, true].iter() {
-                for &flipped_v in [false, true].iter() {
-                    let oriented: OrientedTile = OrientedTile {
-                        tile: tile.clone(),
-                        flipped_h,
-                        flipped_v,
-                        turned_right,
-                    };
-                    if edge_counts[oriented.top_edge()] == 1
-                        && edge_counts[oriented.left_edge()] == 1
-                    {
-                        corner_tile = Some(oriented.clone());
-                    }
-                }
-            }
-        }
-        if corner_tile.is_some() {
-            break;
-        }
-    }
-    if corner_tile.is_none() {
-        panic!("couldn't find a corner tile");
-    }
-    let tile_to_remove = corner_tile.clone().unwrap().tile;
-    grid[0][0] = corner_tile;
-    tileset.remove(&tile_to_remove);
-
     for row in 0..N {
         for col in 0..N {
-            if (row, col) != (0, 0) {
-                let otile: OrientedTile = find_tile(&grid, &tileset, &edge_counts, row, col);
+            let otile: Option<OrientedTile> = find_tile(&grid, &tileset, &edge_counts, row, col);
+            if let Some(otile) = otile.clone() {
+                tileset.remove(&otile.tile);
             }
+            grid[row][col] = otile;
+            show_grid(&grid);
         }
     }
+    let corners: Vec<OrientedTile> = vec![
+        grid[0][0].as_ref().unwrap().clone(),
+        grid[0][N - 1].as_ref().unwrap().clone(),
+        grid[N - 1][0].as_ref().unwrap().clone(),
+        grid[N - 1][N - 1].as_ref().unwrap().clone(),
+    ];
+    let product: u64 = corners.iter().map(|otile| otile.tile.id as u64).product();
+    println!("corner product: {}", product);
 }
