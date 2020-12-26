@@ -222,7 +222,7 @@ fn show_grid(grid: &Vec<Vec<Option<OrientedTile>>>) {
 }
 
 fn main() {
-    let mut tiles = read_tiles_from_file("input.txt");
+    let tiles = read_tiles_from_file("input.txt");
     let mut tileset: HashSet<Tile> = HashSet::from_iter(tiles.iter().cloned());
 
     let edge_counts = get_edge_counts(&tiles);
