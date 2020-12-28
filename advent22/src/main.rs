@@ -21,16 +21,23 @@ fn play_one_turn(
     if recursive && card1 as usize <= p1.len() && card2 as usize <= p2.len() {
         let num1 = card1 as usize;
         let num2 = card2 as usize;
-        let p1_next: &[u32] = &p1.make_contiguous()[0..num1];
-        let p2_next: &[u32] = &p2.make_contiguous()[0..num2];
-        let mut recursive_deck1: VecDeque<u32> = p1_next.iter().copied().collect();
-        let mut recursive_deck2: VecDeque<u32> = p2_next.iter().copied().collect();
+        let p1_vec: Vec<u32> = p1.iter().copied().collect();
+        let p2_vec: Vec<u32> = p2.iter().copied().collect();
+        let mut recursive_deck1: VecDeque<u32> = p1_vec[0..num1].iter().copied().collect();
+        let mut recursive_deck2: VecDeque<u32> = p2_vec[0..num2].iter().copied().collect();
+        let description = describe_state(&recursive_deck1, &recursive_deck2);
+        println!(
+            "recursing with {} known games. Game: {}",
+            known_games.len(),
+            description
+        );
         let winner = play_full_game(
             &mut recursive_deck1,
             &mut recursive_deck2,
             true,
             known_games,
         );
+        // println!("done with game {}", description);
         match winner {
             Player::P1 => {
                 p1.push_back(card1);
@@ -53,7 +60,15 @@ fn play_one_turn(
 }
 
 fn describe_state(p1: &VecDeque<u32>, p2: &VecDeque<u32>) -> String {
-    format!("{:?}/{:?}", p1, p2)
+    let mut pieces: Vec<String> = Vec::new();
+    for &piece in p1 {
+        pieces.push(piece.to_string());
+    }
+    pieces.push("|".to_string());
+    for &piece in p2 {
+        pieces.push(piece.to_string());
+    }
+    pieces.join(",")
 }
 
 fn play_full_game(
@@ -66,7 +81,6 @@ fn play_full_game(
     if known_games.contains_key(&description) {
         return known_games[&description];
     }
-    println!("{} known games. Playing {}", known_games.len(), description);
 
     let mut seen_states: HashSet<String> = HashSet::new();
     loop {
@@ -74,6 +88,7 @@ fn play_full_game(
         if seen_states.contains(&description) {
             // the game would loop infinitely, and is a win for P1
             known_games.insert(description, Player::P1);
+            println!("returning from infinite loop");
             return Player::P1;
         }
         seen_states.insert(description.clone());
@@ -180,4 +195,13 @@ fn test_recursive() {
     let winner = play_full_game(&mut p1, &mut p2, true, &mut known_games);
     assert_eq!(winner, Player::P2);
     assert_eq!(score_deck(&p2), 291);
+}
+
+#[test]
+fn test_recursive2() {
+    let mut p1: VecDeque<u32> = VecDeque::from(vec![11]);
+    let mut p2: VecDeque<u32> = VecDeque::from(vec![45, 30, 40, 35]);
+    let mut known_games: HashMap<String, Player> = HashMap::new();
+    let winner = play_full_game(&mut p1, &mut p2, true, &mut known_games);
+    assert_eq!(winner, Player::P2);
 }
