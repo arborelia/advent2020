@@ -21,8 +21,12 @@ fn play_one_turn(
     if recursive && card1 as usize <= p1.len() && card2 as usize <= p2.len() {
         let num1 = card1 as usize;
         let num2 = card2 as usize;
+
+        // I think this is where the problems begin. make_contiguous was stabilized recently
+        // in Rust 1.48.
         let p1_next: &[u32] = &p1.make_contiguous()[0..num1];
         let p2_next: &[u32] = &p2.make_contiguous()[0..num2];
+
         let mut recursive_deck1: VecDeque<u32> = p1_next.iter().copied().collect();
         let mut recursive_deck2: VecDeque<u32> = p2_next.iter().copied().collect();
         let winner = play_full_game(
@@ -53,7 +57,21 @@ fn play_one_turn(
 }
 
 fn describe_state(p1: &VecDeque<u32>, p2: &VecDeque<u32>) -> String {
-    format!("{:?}/{:?}", p1, p2)
+    // I wrote a more coherent way of expressing a state as a string in my final code.
+    // This messy version, however, reveals the problem aptly. The println!() call on
+    // line 66 will keep printing forever.
+
+    println!("attempting to describe a VecDeque");
+    println!("  with length {} and capacity {}:", p1.len(), p1.capacity());
+    println!("  {:?}", p1);
+    let desc1 = format!("{:?}", p1);
+    println!("attempting to describe a VecDeque");
+    println!("  with length {} and capacity {}", p2.len(), p2.capacity());
+    println!("  {:?}", p2);
+    let desc2 = format!("{:?}", p2);
+    println!("ok");
+
+    format!("{}/{}", desc1, desc2)
 }
 
 fn play_full_game(
