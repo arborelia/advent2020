@@ -1,3 +1,4 @@
+use array2d::Array2D;
 use defaultmap::DefaultHashMap;
 use scan_fmt::scan_fmt;
 use std::collections::HashSet;
@@ -13,7 +14,9 @@ pub struct Tile {
     bottom: u32,
     left: u32,
     right: u32,
-    image: Vec<Vec<char>>,
+
+    // the . and # chars that make up the tile
+    image: Array2D<char>,
 }
 
 impl PartialEq for Tile {
@@ -37,6 +40,24 @@ fn reverse(num: u32) -> u32 {
         }
     }
     val
+}
+
+fn array_rotate_right(arr: Array2D<char>) -> Array2D<char> {
+    // 0 1 2      6 3 0
+    // 3 4 5  ->  7 4 1
+    // 6 7 8      8 5 2
+    let rev_rows: Vec<Vec<char>> = arr.as_rows().iter().rev().cloned().collect();
+    Array2D::from_columns(&rev_rows)
+}
+
+fn array_flip_v(arr: Array2D<char>) -> Array2D<char> {
+    let rev_rows: Vec<Vec<char>> = arr.as_rows().iter().rev().cloned().collect();
+    Array2D::from_rows(&rev_rows)
+}
+
+fn array_flip_h(arr: Array2D<char>) -> Array2D<char> {
+    let rev_cols: Vec<Vec<char>> = arr.as_columns().iter().rev().cloned().collect();
+    Array2D::from_columns(&rev_cols)
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +111,31 @@ impl OrientedTile {
     pub fn left_edge(&self) -> u32 {
         self.oriented_edges().3
     }
+
+    /// Get the piece of the image represented by this tile in this orientation,
+    /// with the border removed.
+    pub fn image(&self) -> Array2D<char> {
+        let mut arr: Array2D<char> = self.tile.image.clone();
+
+        if self.turned_right {
+            arr = array_rotate_right(arr);
+        }
+        if self.flipped_h {
+            arr = array_flip_h(arr);
+        }
+        if self.flipped_v {
+            arr = array_flip_v(arr);
+        }
+
+        let mut trim_arr: Array2D<char> =
+            Array2D::filled_with('.', arr.num_rows() - 2, arr.num_columns() - 2);
+        for row in 1..(arr.num_rows() - 1) {
+            for col in 1..(arr.num_columns() - 1) {
+                trim_arr[(row - 1, col - 1)] = arr[(row, col)];
+            }
+        }
+        trim_arr
+    }
 }
 
 fn read_tiles_from_file(path: &str) -> Vec<Tile> {
@@ -125,7 +171,7 @@ fn read_tiles_from_file(path: &str) -> Vec<Tile> {
                     bottom,
                     left,
                     right,
-                    image: rows.clone(),
+                    image: Array2D::from_rows(&rows),
                 };
                 println!("{:?}", tile);
                 tiles.push(tile);
@@ -236,6 +282,24 @@ fn show_grid(grid: &Vec<Vec<Option<OrientedTile>>>) {
     println!("");
 }
 
+fn assemble_tiles(grid: &Vec<Vec<Option<OrientedTile>>>) -> Array2D<char> {
+    let mut image: Array2D<char> = Array2D::filled_with(' ', N * 8, N * 8);
+    for row in 0..N {
+        for col in 0..N {
+            let otile = grid[row][col]
+                .clone()
+                .expect("There's an unknown tile here");
+            let tile_image: Array2D<char> = otile.image();
+            for irow in 0..8 {
+                for icol in 0..8 {
+                    image[(row * 8 + irow, col * 8 + icol)] = tile_image[(irow, icol)];
+                }
+            }
+        }
+    }
+    image
+}
+
 fn main() {
     let tiles = read_tiles_from_file("input.txt");
     let mut tileset: HashSet<Tile> = HashSet::from_iter(tiles.iter().cloned());
@@ -264,4 +328,55 @@ fn main() {
     ];
     let product: u64 = corners.iter().map(|otile| otile.tile.id as u64).product();
     println!("corner product: {}", product);
+
+    let image = assemble_tiles(&grid);
+    let n_dark: usize = image.as_row_major().iter().filter(|&&c| c == '#').count();
+    let sea_monster_vec: Vec<Vec<char>> = vec![
+        "                  O ".chars().collect(),
+        "O    OO    OO    OOO".chars().collect(),
+        " O  O  O  O  O  O   ".chars().collect(),
+    ];
+    let monster: Array2D<char> = Array2D::from_rows(&sea_monster_vec);
+
+    for &rotate in [true, false].iter() {
+        for &flip_v in [true, false].iter() {
+            for &flip_h in [true, false].iter() {
+                let mut image_t = image.clone();
+                if rotate {
+                    image_t = array_rotate_right(image_t);
+                }
+                if flip_v {
+                    image_t = array_flip_v(image_t);
+                }
+                if flip_h {
+                    image_t = array_flip_h(image_t);
+                }
+
+                let mut monsters_found: u32 = 0;
+                for row_offset in 0..=(image.num_rows() - monster.num_rows()) {
+                    for col_offset in 0..=(image.num_columns() - monster.num_columns()) {
+                        let mut possible_monster: bool = true;
+                        for row in 0..monster.num_rows() {
+                            if !possible_monster {
+                                break;
+                            }
+                            for col in 0..monster.num_columns() {
+                                if monster[(row, col)] == 'O' {
+                                    if image_t[(row + row_offset, col + col_offset)] != '#' {
+                                        possible_monster = false;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if possible_monster {
+                            monsters_found += 1;
+                        }
+                    }
+                }
+                let roughness = n_dark as u32 - monsters_found * 15;
+                println!("{} monsters found: roughness {}", monsters_found, roughness);
+            }
+        }
+    }
 }
