@@ -205,3 +205,16 @@ fn test_recursive2() {
     let winner = play_full_game(&mut p1, &mut p2, true, &mut known_games);
     assert_eq!(winner, Player::P2);
 }
+
+#[test]
+fn test_deque_of_doom() {
+    let mut deque: VecDeque<u32> = VecDeque::from(vec![0, 1, 2, 3, 4, 5]);
+    for _iter in 0..4 {
+        let val = deque.pop_front().unwrap();
+        deque.push_back(val);
+    }
+    deque.make_contiguous();
+
+    let formatted = format!("{:?}", deque); // this line is an infinite loop
+    println!("deque contents: {}", formatted);
+}
