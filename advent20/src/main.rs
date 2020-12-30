@@ -1,9 +1,10 @@
 use defaultmap::DefaultHashMap;
 use scan_fmt::scan_fmt;
 use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::iter::FromIterator;
 
-#[derive(Debug, Clone, Copy, PartialEq, Hash, Eq)]
+#[derive(Debug, Clone, Eq)]
 pub struct Tile {
     id: u32,
 
@@ -12,6 +13,19 @@ pub struct Tile {
     bottom: u32,
     left: u32,
     right: u32,
+    image: Vec<Vec<char>>,
+}
+
+impl PartialEq for Tile {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Hash for Tile {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
+    }
 }
 
 /// Reverse a 10-bit number representing an edge.
@@ -111,6 +125,7 @@ fn read_tiles_from_file(path: &str) -> Vec<Tile> {
                     bottom,
                     left,
                     right,
+                    image: rows.clone(),
                 };
                 println!("{:?}", tile);
                 tiles.push(tile);
