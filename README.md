@@ -1,13 +1,11 @@
 # Advent of Code 2020, in Rust
 
-_Elia Robyn Speer_
-
 I had a great time using Advent of Code to level up my Rust skills from beginner to intermediate. Here, I'll highlight some of my favorite solutions.
 
 
 # Day 23: Crab Cups
 
-[The task](https://adventofcode.com/2020/day/23) / [my solution]((./blob/main/advent23/src/main.rs))
+[The task](https://adventofcode.com/2020/day/23) / [my solution](advent23/src/main.rs)
 
 This problem started by defining a simple game of moving around 9 numbered cups in a circle, with an operation that moves 3 cups at a time to a new spot after the cup with a given number. With 9 cups, this was easy enough to implement with a double-ended queue, which I'd simply search linearly to find the place to move the cups to.
 
@@ -24,7 +22,7 @@ Once I had this data structuer, it was extremely satisfying to see the same mill
 
 # Day 17: Conway Cubes
 
-[The task](https://adventofcode.com/2020/day/17) / [my solution]((./blob/main/advent17/src/main.rs))
+[The task](https://adventofcode.com/2020/day/17) / [my solution](advent17/src/main.rs)
 
 This problem asks you to implement Conway's Game of Life in 3 dimensions, then in 4 dimensions. The live cells have to be stored sparsely, as a dense 4-dimensional array consumes way too much memory as it expands in every dimension.
 
@@ -33,7 +31,7 @@ I was able to abstract my code to require its cells to have only a trait called 
 
 # Day 24: Lobby Layout
 
-[The task](https://adventofcode.com/2020/day/24) / [my solution]((./blob/main/advent24/src/main.rs))
+[The task](https://adventofcode.com/2020/day/24) / [my solution](advent24/src/main.rs)
 
 Okay, actually, the generality of my solution on day 17 _did_ help! It turned out that I could reuse this code on day 24, which was another Life-like automaton, on a hex grid this time. I just needed to add some parameters to allow changing the number of neighbors required for survival or birth.
 
@@ -46,7 +44,7 @@ Because each valid hex direction ends in either `w` or `e`, I found that I wante
 
 # Day 22: Crab Combat
 
-[The task](https://adventofcode.com/2020/day/22) / [my solution]((./blob/main/advent22/src/main.rs))
+[The task](https://adventofcode.com/2020/day/22) / [my solution](advent22/src/main.rs)
 
 Part 1 asks for an implementation of a simple game of War, and then part 2 makes it overwhelmingly, painfully recursive. Implementing the rules of both versions of the game went fine, but I was perplexed to find that my code for step 2 would loop infinitely.
 
@@ -63,7 +61,7 @@ The bug is fixed in unstable versions of Rust, such as the current candidate for
 
 # Day 4: Passport Processing
 
-[The task](https://adventofcode.com/2020/day/4) / [my solution]((./blob/main/advent4/src/main.rs))
+[The task](https://adventofcode.com/2020/day/4) / [my solution](advent4/src/main.rs)
 
 This was an extremely messy parsing task to appear so early in the Advent of Code, asking us to parse and validate an ad-hoc "passport" format with examples such as:
 
@@ -92,16 +90,16 @@ In Rust, where currying is basically not a thing and where you have to worry abo
 
 # Day 21: Allergen Assessment
 
-[The task](https://adventofcode.com/2020/day/21) / [my solution]((./blob/main/advent21/src/main.rs))
+[The task](https://adventofcode.com/2020/day/21) / [my solution](advent21/src/main.rs)
 
-On day 21, exhausted by the design of nom, I learned a different parsing tool, [pest](https://pest.rs/book/). Writing [a grammar](./blob/main/advent21/src/grammar.pest) in pest was much easier, though the ergonomics of how to turn a parse tree into a semantic value weren't as desirable.
+On day 21, exhausted by the design of nom, I learned a different parsing tool, [pest](https://pest.rs/book/). Writing [a grammar](advent21/src/grammar.pest) in pest was much easier, though the ergonomics of how to turn a parse tree into a semantic value weren't as desirable.
 
 Once the awkward ad-hoc format was parsed, what remained was a cute little logic puzzle where the constraints were easy to propagate.
 
 
 # Day 19: Monster Messages
 
-[The task](https://adventofcode.com/2020/day/19) / [my solution]((./blob/main/advent19/src/main.rs))
+[The task](https://adventofcode.com/2020/day/19) / [my solution](advent19/src/main.rs)
 
 I spent a while on this one, because I wanted to do it right. Parsing context-free grammars is the kind of thing that's been my bread and butter for decades, but that means it had been maybe 14 years since I'd actually implemented the [Earley algorithm](https://en.wikipedia.org/wiki/Earley_parser).
 
