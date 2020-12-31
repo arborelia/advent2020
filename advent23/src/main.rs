@@ -125,7 +125,7 @@ fn perform_cup_move(cups: &mut SpinnyList) {
 
 fn order_after_n_moves(cups: &mut SpinnyList, count: u32) -> Vec<u32> {
     for iter in 0..count {
-        if iter % 1000 == 0 {
+        if iter % 10000 == 0 {
             dbg!(iter);
         }
         perform_cup_move(cups);
