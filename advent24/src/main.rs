@@ -1,6 +1,15 @@
 #![feature(split_inclusive)]
-use defaultmap::DefaultHashMap;
 use std::collections::HashSet;
+
+// reuse code from day 17
+mod ndlife;
+use ndlife::{run_nd_life, HasNeighbors, LifeParams};
+
+const PARAMS: LifeParams = LifeParams {
+    min_survival: 1,
+    max_survival: 2,
+    birth: 2,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct HexCoordinate {
@@ -11,17 +20,6 @@ struct HexCoordinate {
 impl HexCoordinate {
     fn origin() -> Self {
         Self { q: 0, r: 0 }
-    }
-
-    fn neighbors(&self) -> [Self; 6] {
-        [
-            self.move_e(),
-            self.move_se(),
-            self.move_sw(),
-            self.move_w(),
-            self.move_nw(),
-            self.move_ne(),
-        ]
     }
 
     fn move_e(&self) -> Self {
@@ -67,28 +65,17 @@ impl HexCoordinate {
     }
 }
 
-fn hex_life_step(state: &HashSet<HexCoordinate>) -> HashSet<HexCoordinate> {
-    let mut neighbors: DefaultHashMap<HexCoordinate, u32> = DefaultHashMap::new(0);
-    for hex in state.iter() {
-        for &neighbor in hex.neighbors().iter() {
-            neighbors[neighbor] += 1;
-        }
+impl HasNeighbors for HexCoordinate {
+    fn neighbors(self) -> Vec<Self> {
+        vec![
+            self.move_e(),
+            self.move_se(),
+            self.move_sw(),
+            self.move_w(),
+            self.move_nw(),
+            self.move_ne(),
+        ]
     }
-    let mut next_state: HashSet<HexCoordinate> = HashSet::new();
-    for &hex in neighbors.keys() {
-        if state.contains(&hex) {
-            // currently black
-            if neighbors[hex] == 1 || neighbors[hex] == 2 {
-                next_state.insert(hex);
-            }
-        } else {
-            // currently white
-            if neighbors[hex] == 2 {
-                next_state.insert(hex);
-            }
-        }
-    }
-    next_state
 }
 
 fn string_to_hex(input: &str) -> HexCoordinate {
@@ -124,45 +111,49 @@ fn flip_hex_tiles_from_input(lines: &Vec<&str>) -> HashSet<HexCoordinate> {
 fn main() {
     let input = std::fs::read_to_string("input.txt").unwrap();
     let lines: Vec<&str> = input.trim().split("\n").collect();
-    let mut state = flip_hex_tiles_from_input(&lines);
+    let state = flip_hex_tiles_from_input(&lines);
     println!("Tiles flipped in start configuration: {}", state.len());
 
-    for step in 0..100 {
-        state = hex_life_step(&state);
-        println!("Step {}: {}", step + 1, state.len());
-    }
+    let state = run_nd_life(state, 100, PARAMS);
+    println!("{} cells alive at end", state.len());
 }
 
-#[test]
-fn test_life_steps() {
-    let start_directions: Vec<&str> = vec![
-        "sesenwnenenewseeswwswswwnenewsewsw",
-        "neeenesenwnwwswnenewnwwsewnenwseswesw",
-        "seswneswswsenwwnwse",
-        "nwnwneseeswswnenewneswwnewseswneseene",
-        "swweswneswnenwsewnwneneseenw",
-        "eesenwseswswnenwswnwnwsewwnwsene",
-        "sewnenenenesenwsewnenwwwse",
-        "wenwwweseeeweswwwnwwe",
-        "wsweesenenewnwwnwsenewsenwwsesesenwne",
-        "neeswseenwwswnwswswnw",
-        "nenwswwsewswnenenewsenwsenwnesesenew",
-        "enewnwewneswsewnwswenweswnenwsenwsw",
-        "sweneswneswneneenwnewenewwneswswnese",
-        "swwesenesewenwneswnwwneseswwne",
-        "enesenwswwswneneswsenwnewswseenwsese",
-        "wnwnesenesenenwwnenwsewesewsesesew",
-        "nenewswnwewswnenesenwnesewesw",
-        "eneswnwswnwsenenwnwnwwseeswneewsenese",
-        "neswnwewnwnwseenwseesewsenwsweewe",
-        "wseweeenwnesenwwwswnew",
-    ];
-    let state = flip_hex_tiles_from_input(&start_directions);
-    assert_eq!(state.len(), 10);
-    let state = hex_life_step(&state);
-    assert_eq!(state.len(), 15);
-    let state = hex_life_step(&state);
-    assert_eq!(state.len(), 12);
-    let state = hex_life_step(&state);
-    assert_eq!(state.len(), 25);
+#[cfg(test)]
+mod test {
+    use super::*;
+    use ndlife::step_nd_life;
+
+    #[test]
+    fn test_life_steps() {
+        let start_directions: Vec<&str> = vec![
+            "sesenwnenenewseeswwswswwnenewsewsw",
+            "neeenesenwnwwswnenewnwwsewnenwseswesw",
+            "seswneswswsenwwnwse",
+            "nwnwneseeswswnenewneswwnewseswneseene",
+            "swweswneswnenwsewnwneneseenw",
+            "eesenwseswswnenwswnwnwsewwnwsene",
+            "sewnenenenesenwsewnenwwwse",
+            "wenwwweseeeweswwwnwwe",
+            "wsweesenenewnwwnwsenewsenwwsesesenwne",
+            "neeswseenwwswnwswswnw",
+            "nenwswwsewswnenenewsenwsenwnesesenew",
+            "enewnwewneswsewnwswenweswnenwsenwsw",
+            "sweneswneswneneenwnewenewwneswswnese",
+            "swwesenesewenwneswnwwneseswwne",
+            "enesenwswwswneneswsenwnewswseenwsese",
+            "wnwnesenesenenwwnenwsewesewsesesew",
+            "nenewswnwewswnenesenwnesewesw",
+            "eneswnwswnwsenenwnwnwwseeswneewsenese",
+            "neswnwewnwnwseenwseesewsenwsweewe",
+            "wseweeenwnesenwwwswnew",
+        ];
+        let mut state = flip_hex_tiles_from_input(&start_directions);
+        assert_eq!(state.len(), 10);
+        state = step_nd_life(state, PARAMS);
+        assert_eq!(state.len(), 15);
+        state = step_nd_life(state, PARAMS);
+        assert_eq!(state.len(), 12);
+        state = step_nd_life(state, PARAMS);
+        assert_eq!(state.len(), 25);
+    }
 }
